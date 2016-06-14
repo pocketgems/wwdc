@@ -147,12 +147,48 @@ GLfloat gCubeVertexData[216] =
     return YES;
 }
 
+void CHECK_GL_ERROR() {
+    GLenum __error = glGetError();
+    if (__error) {
+        printf("OpenGL error 0x%04X in %s %d\n", __error, __FUNCTION__, __LINE__);
+    }
+}
+
+void runLeakingCode() {
+    GLuint bufferID2;
+    glGenBuffers(1, &bufferID2);
+    size_t size2 = 5 * 1024 * 1024;
+    void *data2 = malloc(size2);
+
+    glBindBuffer(GL_ARRAY_BUFFER, bufferID2);
+    glBufferData(GL_ARRAY_BUFFER, size2, data2, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    free(data2);
+
+    GLuint bufferID1;
+    glGenBuffers(1, &bufferID1);
+    size_t size1 = 2 * 1024 * 1024;
+    void *data1 = malloc(size1);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufferID1);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size1, data1, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    free(data1);
+
+    glDeleteBuffers(1, &bufferID2);
+    glDeleteBuffers(1, &bufferID1);
+
+    CHECK_GL_ERROR();
+}
+
 - (void)setupGL
 {
     [EAGLContext setCurrentContext:self.context];
-    
+
     [self loadShaders];
-    
+
     self.effect = [[GLKBaseEffect alloc] init];
     self.effect.light0.enabled = GL_TRUE;
     self.effect.light0.diffuseColor = GLKVector4Make(1.0f, 0.4f, 0.4f, 1.0f);
@@ -172,6 +208,12 @@ GLfloat gCubeVertexData[216] =
     glVertexAttribPointer(GLKVertexAttribNormal, 3, GL_FLOAT, GL_FALSE, 24, BUFFER_OFFSET(12));
     
     glBindVertexArrayOES(0);
+
+    puts("Preparing to leak...");
+    sleep(3);
+    runLeakingCode();
+    puts("Done!");
+    sleep(3);
 }
 
 - (void)tearDownGL
